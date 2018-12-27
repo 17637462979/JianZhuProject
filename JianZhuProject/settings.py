@@ -81,7 +81,7 @@ CONCURRENT_REQUESTS = 3
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 # LOG_LEVEL = 'WARNING'
-ALL_FINGER_CONTAINS = 'finger_contains_new1'
+ALL_FINGER_CONTAINS = 'finger_contains_new1_tmp'
 #
 # now_date_time = datetime.datetime.now()
 # LOG_FILE = 'logs/scrapy_{}_{}_{}.log'.format(now_date_time.year, now_date_time.month, now_date_time.day)
