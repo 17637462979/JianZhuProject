@@ -1,0 +1,149 @@
+
+# coding=utf-8
+import requests
+from lxml import etree
+
+from JianZhuProject.items import QualityItem
+from JianZhuProject.spiders.base_template import ParentSpider
+from JianZhuProject.spiders.extract.extract_qualification import ExtractQualification
+
+Postion = ['ListPage', 'DetailPage', 'QualPage', 'ProjPage', 'StaffPage']
+
+class AnHuiSpider(ParentSpider):
+    name = 'an_hui_spider'
+    allowed_domains = ['www.ahgcjs.com.cn:3318', 'www.ahgcjs.com.cn']
+    start_urls = ['http://www.ahgcjs.com.cn:3318/pub/query/comp/compPubCaList/all/111120164101726998?flag=1']
+    extract_dict = {
+        'list_page': {
+            'lines_rule': '//table[@class="inquiry_listhei"]//tr',
+            'detail_link_rule': './td[2]/a[@class="actbar-btn"]/@href',  # 相对相对
+            'have_next_page_rule': '//div[@class="page"]//a[@class="nxt"]/text()',  # 返回一个bool值，标志是否还可翻页
+            'next_page_rule': 'http://www.ahgcjs.com.cn:3318/pub/query/comp/compPubCaList/all/111120164101726998?flag=1',  # 绝对路径
+            'total_page_num_rule': '//script[contains(text(), "__pgfm")]',  # 列表页的总页码, 绝对路径  # __pgfm('',{"$total":19776,"$pgsz":15,"$pg":3,"$reload":0})
+            'method': 'POST',
+        },
+        'detail_page': {
+            'method': 'GET',
+            'compass': {
+                'cnodes': ['//div[@class="inquiry_listcont"]/table'],   #
+                'cname': [u'.//td[contains(@class,"inquiry") and contains(text(), "企业名称")]/following-sibling::*[1]/text()', 'compass_name'],
+                # 'clink': '',
+                'chonor_code': [u'.//td[contains(@class,"inquiry") and contains(text(), "执照编号")]/following-sibling::*[1]/text()', 'honor_code'],
+                'clegal_person': [u'.//td[contains(@class,"inquiry") and contains(text(), "代表人")]/following-sibling::*[1]/text()', 'representative'],
+                'ctype': [u'.//td[contains(@class,"inquiry") and contains(text(), "登记类型")]/following-sibling::*[1]/text()', 'compass_type'],
+                'cprovince': [u'.//td[contains(@class,"inquiry") and contains(text(), "注册地")]/following-sibling::*[1]/text()', 'provice'],
+                'coperation_addr': [u'.//td[contains(@class,"inquiry") and contains(text(), "注册地址")]/following-sibling::*[1]/text()', 'operating_addr'],
+                'cestablish_time': [u'.//td[contains(@class,"inquiry") and contains(text(), "注册日期")]/following-sibling::*[1]/text()', 'establish_time'],
+                'cregister_capital': [None, 'register_capital'],
+                'cnet_asset': [None, 'net_asset']
+            },
+            'qualification': {
+                'qnodes': ['//div[@class="inquiry_listcont"]'],
+                'qtype': [u'.//img[@alt="电子证书"]/@onclick', 'quality_type'],
+                'qcode': [u'.//td[contains(@class,"inquiry") and contains(text(), "证书编号")]/following-sibling::td[1]/text()',
+                    'quality_code'],
+                'qname': [u'.//td[contains(@class,"inquiry") and contains(text(), "资质内容")]/following-sibling::td[1]/text()',
+                    'quality_name'],
+                'qstart_date': [None, 'quality_start_date'],
+                'qend_date': [u'.//td[contains(@class,"inquiry") and contains(text(), "有效日期")]/following-sibling::td[1]/text()',
+                    'quality_end_date'],
+                'qdetail_link': [None, 'quality_detail_link'],
+                'qauthority': [u'.//td[contains(@class,"inquiry") and contains(text(), "发证机关")]/following-sibling::td[1]/text()',
+                    'authority']
+            },
+            'project': {
+                'pnodes': '',
+                'pcode': '',
+                'pname': '',
+                'psite': '',
+                'ptype': '',
+                'employer': '',
+                'pdetail_link': '',
+                'plink': '',
+            },
+            'staff': {
+                'snodes': '',
+                'sname': '',
+                'sid_card': '',
+                'stitle': '',
+                'stitle_code': '',
+                'sprofession': '',
+                'sdetail_link': '',
+                'slicence_stime': '',
+                'slicence_etime': '',
+            },
+            'change': {
+                'ch_nodes': '',
+                'ch_time': '',
+                'ch_content': '',
+                'other_msg': '',
+            },
+            'behavior': {
+                'bnodes': '',
+                'brecord_id': '',
+                'bcontent': '',
+                'bexecutor': '',
+                'bpublish_stime': '',
+                'bpublish_etime': '',
+                'bbody': '',
+                'btype': '',
+            }
+        }
+    }
+
+    def get_headers(self, url, link, position):
+        """
+        获取前往详细页面的headers
+        :param url: 列表页的url(当前)
+        :param position: 哪个位置的headers
+        :param link: 如果是DetailPage，link是详细页的url; 如果是ListPage，link=url
+        :return:
+        """
+        if position == Postion[1]:
+            headers = {
+                "Host": "www.ahgcjs.com.cn:3318",
+                "Referer": url,
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36",
+            }
+        else:
+            headers = {
+
+            }
+        return headers
+
+
+class ExtractQual(ExtractQualification):
+    def extract_qualification_info(self, resp_detail, qual_rules):
+        link = resp_detail.url
+        # 'http://www.ahgcjs.com.cn:3318/pub/query/comp/compCaList/130901181300704576'
+        url = link.replace('showCompInfo', 'compCaList')
+        headers = {
+            "Host": "www.ahgcjs.com.cn:3318",
+            "Referer": url,
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36",
+        }
+        resp = requests.get(url, headers=headers)
+        html = etree.HTML(resp.content)
+        node = html.xpath(qual_rules.pop('qnodes')[0])[0]
+        qtype_li = node.xpath(qual_rules['qtype'])
+        qcode_li = node.xpath(qual_rules['qcode'])
+        qname_li = node.xpath(qual_rules['qname'])
+        qend_date_li = node.xpath(qual_rules['qend_date'])
+        qauthority_li = node.xpath(qual_rules['qauthority'])
+        for qcode, qname, qend_date, qauthority in zip(qcode_li, qname_li, qend_date_li, qauthority_li):
+            QualityItem({
+                'quality_type': '',
+                'quality_code': qcode,
+                'quality_name': qname,
+                'quality_start_date': '',
+                'quality_end_date': qend_date,
+                'quality_detail_link': qauthority,
+                'authority': '',
+            })
+        return {"name": "lisi"}
+
+
+
+if __name__ == '__main__':
+    an_hui = AnHuiSpider()
+    an_hui.run()
