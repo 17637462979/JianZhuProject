@@ -39,12 +39,17 @@ class BaseCompass(scrapy.Spider):
             print(u'解析外省....')
             outer_nodes = response.xpath(self.extract_dict['outer']['nodes'])
             outer = self.extract_dict['outer']
+            print("outer_nodes:", len(outer_nodes))
             for node in outer_nodes:
                 item = NameItem()
+                print(node.xpath(outer['cname']).extract_first())
                 item['compass_name'] = self.handle_cname(node.xpath(outer['cname']).extract_first(), 'outer')
                 item['detail_link'] = self.handle_cdetail_link(node.xpath(outer['detail_link']).extract_first(),
                                                                'outer', url)
-                item['out_province'] = self.handle_out_province(node.xpath(outer['out_province']).extract_first())
+                if isinstance(outer['out_province'], list) and len(outer['out_province']) > 1:
+                    item['out_province'] = outer['out_province'][1]
+                else:
+                    item['out_province'] = self.handle_out_province(node.xpath(outer['out_province']).extract_first())
                 item_contains.append(item)
 
         yield {'item_contains': item_contains}
