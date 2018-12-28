@@ -1,13 +1,15 @@
-# coding=utf-8
+# # coding=utf-8
 import json
 
 import scrapy
-
+#
 from JianZhuProject import sit_list
 from JianZhuProject.items import NameItem
 from JianZhuProject.spiders.compass.base_compass import BaseCompass
-import urlparse
 
+
+# import urlparse
+#
 
 class NingXiaCompass(BaseCompass):
     name = 'ningxia_compass'
