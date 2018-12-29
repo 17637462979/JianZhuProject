@@ -9,7 +9,7 @@ class ZheJiangCompass(BaseCompass):
     name = 'zhejiang_compass'
     allow_domain = ['115.29.2.37:8080']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,},
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, },
         # 'ALL_FINGER_CONTAINS': 'finger_contains_new1_tmp'
     }
     start_urls = [
