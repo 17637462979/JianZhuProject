@@ -12,25 +12,29 @@ class HeBeiCompass(BaseCompass):
     name = 'hebei_compass'
     allow_domain = ['www.hebjs.gov.cn']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,}
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
+    log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
+
     start_urls = [
         # 内省:
-        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=264649", sit_list[0]),  # "建筑业企业"
-        ("http://www.hebjs.gov.cn/was5/web/search?channelid=290807", sit_list[0]),  # "勘察企业"
-        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=278453", sit_list[0]),  # "设计企业",
-        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=273505", sit_list[0]),  # "安全生产许可证",
         # ("http://www.hebjs.gov.cn/was5/web/search?channelid=250510", sit_list[0]),  # "建设工程质量检测机构",
         # ("http://www.hebjs.gov.cn/was5/web/search?channelid=219809", sit_list[0]),  # "工程监理企业",
         # ("http://www.hebjs.gov.cn/was5/web/hbjst/list_xinyong_erjichaxun.jsp", sit_list[0]), # "建筑业企业信用综合评价",
         # ("http://www.hebjs.gov.cn/was5/web/search?channelid=215805", sit_list[0]),   # "招投标",
         # ("http://www.hebjs.gov.cn/was5/web/search?channelid=263141", sit_list[0]),   # "合同备案",
         # # 外省: cname cdetial_page  waisheng
-        ("http://www.hebjs.gov.cn/was5/web/search?channelid=289933", sit_list[1]),  # "进冀建筑业企业（省政府上报）",
-        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=263175", sit_list[1]),   # "进冀建筑业企业(老系统)",
-        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=265706", sit_list[1]),   # "进冀工程监理企业(老系统)",
-        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=234215", sit_list[1]),   # "进冀工程勘察设计企业(老系统)",
+        ("http://www.hebjs.gov.cn/was5/web/search?channelid=263175", sit_list[1]),  # "进冀建筑业企业(老系统)",
+        ("http://www.hebjs.gov.cn/was5/web/search?channelid=265706", sit_list[1]),  # "进冀工程监理企业(老系统)",
+        ("http://www.hebjs.gov.cn/was5/web/search?channelid=234215", sit_list[1]),  # "进冀工程勘察设计企业(老系统)",
+
+        # 已经爬过
+        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=264649", sit_list[0]),  # "建筑业企业"
+        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=278453", sit_list[0]),  # "设计企业",
+        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=273505", sit_list[0]),  # "安全生产许可证",
+        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=290807", sit_list[0]),  # "勘察企业"
+        # ("http://www.hebjs.gov.cn/was5/web/search?channelid=289933", sit_list[1]),  # "进冀建筑业企业（省政府上报）",
     ]
     # redis_tools = RedisTools()
 
@@ -65,7 +69,7 @@ class HeBeiCompass(BaseCompass):
                                  meta={'sit': sit, 'pre_page_num': '0'})
 
     def parse_list(self, response):
-        print('parse_list....', response.text)
+        print('parse_list:', response.url)
         item_contains = []
         url = response.url
         sit = response.meta['sit']
@@ -76,16 +80,19 @@ class HeBeiCompass(BaseCompass):
         if sit == sit_list[0]:
             inner_nodes = response.xpath(self.extract_dict['inner']['nodes'])
             inner = self.extract_dict['inner']
-            print("inner_nodes:", len(inner_nodes))
             inner['cname'] = inner['cname'].format(p2)
+            print("inner['cname']:", inner['cname'])
             for node in inner_nodes:
                 item = NameItem()
-                item['compass_name'] = self.handle_cname(node.xpath(inner['cname']).extract_first(), 'inner')
+                try:
+                    item['compass_name'] = self.handle_cname(node.xpath(inner['cname']).extract_first(), 'inner')
+                except Exception as e:
+                    continue
                 if p1:
                     item['detail_link'] = self.handle_cdetail_link(node.xpath(inner['detail_link']).extract_first(),
                                                                    'inner', url)
                 else:
-                    item['detail_link'] = None
+                    item['detail_link'] = 'None'
                 item['out_province'] = inner['out_province'][1] if isinstance(inner['out_province'], list) else 'None'
                 item_contains.append(item)
         if sit == sit_list[1]:
@@ -95,7 +102,10 @@ class HeBeiCompass(BaseCompass):
             outer['cname'] = outer['cname'].format(p2)
             for node in outer_nodes:
                 item = NameItem()
-                item['compass_name'] = self.handle_cname(node.xpath(outer['cname']).extract_first(), 'outer')
+                try:
+                    item['compass_name'] = self.handle_cname(node.xpath(outer['cname']).extract_first(), 'outer')
+                except:
+                    continue
                 if p1:
                     item['detail_link'] = self.handle_cdetail_link(node.xpath(outer['detail_link']).extract_first(),
                                                                    'outer', url)

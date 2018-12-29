@@ -4,13 +4,16 @@ import scrapy
 from scrapy import cmdline
 
 from JianZhuProject import sit_list
+from JianZhuProject.auxiliary.redis_tools import RedisTools
 from JianZhuProject.items import NameItem
+
 
 class BaseCompass(scrapy.Spider):
     name = ''
     allow_domain = ['']
     start_urls = ['']
     extract_dict = None
+    redis_tools = RedisTools()
 
     def start_requests(self):
         print('start_requests.....')
@@ -20,38 +23,52 @@ class BaseCompass(scrapy.Spider):
                                  meta={'sit': sit, 'pre_page_num': '0'})
 
     def parse_list(self, response):
-        print('parse_list....', response.text)
+        # print('parse_list....', response.text)
         item_contains = []
         url = response.url
         sit = response.meta['sit']
-        if sit == sit_list[0]:
-            inner_nodes = response.xpath(self.extract_dict['inner']['nodes'])
-            inner = self.extract_dict['inner']
-            print("inner_nodes:", len(inner_nodes))
-            for node in inner_nodes:
-                item = NameItem()
-                item['compass_name'] = self.handle_cname(node.xpath(inner['cname']).extract_first(), 'inner')
-                item['detail_link'] = self.handle_cdetail_link(node.xpath(inner['detail_link']).extract_first(),
-                                                               'inner', url)
-                item['out_province'] = inner['out_province'][1] if isinstance(inner['out_province'], list) else 'None'
-                item_contains.append(item)
-        if sit == sit_list[1]:
-            print(u'解析外省....')
-            outer_nodes = response.xpath(self.extract_dict['outer']['nodes'])
-            outer = self.extract_dict['outer']
-            print("outer_nodes:", len(outer_nodes))
-            for node in outer_nodes:
-                item = NameItem()
-                print(node.xpath(outer['cname']).extract_first())
-                item['compass_name'] = self.handle_cname(node.xpath(outer['cname']).extract_first(), 'outer')
-                item['detail_link'] = self.handle_cdetail_link(node.xpath(outer['detail_link']).extract_first(),
-                                                               'outer', url)
-                if isinstance(outer['out_province'], list) and len(outer['out_province']) > 1:
-                    item['out_province'] = outer['out_province'][1]
-                else:
-                    item['out_province'] = self.handle_out_province(node.xpath(outer['out_province']).extract_first())
-                item_contains.append(item)
+        try:
+            if sit == sit_list[0]:
+                inner_nodes = response.xpath(self.extract_dict['inner']['nodes'])
+                inner = self.extract_dict['inner']
+                print("inner_nodes:", len(inner_nodes))
+                for node in inner_nodes:
+                    item = NameItem()
+                    item['compass_name'] = self.handle_cname(node.xpath(inner['cname']).extract_first(), 'inner')
+                    item['detail_link'] = self.handle_cdetail_link(node.xpath(inner['detail_link']).extract_first(),
+                                                                   'inner', url)
+                    if self.redis_tools.check_finger(item['detail_link']):
+                        print('{}已经爬取过'.format(item['detail_link']))
+                        continue
+                    item['out_province'] = inner['out_province'][1] if isinstance(inner['out_province'],
+                                                                                  list) else 'None'
+                    item_contains.append(item)
 
+            if sit == sit_list[1]:
+                print(u'解析外省....')
+                outer_nodes = response.xpath(self.extract_dict['outer']['nodes'])
+                outer = self.extract_dict['outer']
+                print("outer_nodes:", len(outer_nodes))
+                for node in outer_nodes:
+                    item = NameItem()
+                    print(node.xpath(outer['cname']).extract_first())
+                    item['compass_name'] = self.handle_cname(node.xpath(outer['cname']).extract_first(), 'outer')
+                    item['detail_link'] = self.handle_cdetail_link(node.xpath(outer['detail_link']).extract_first(),
+                                                                   'outer', url)
+                    if self.redis_tools.check_finger(item['detail_link']):
+                        print('{}已经爬取过'.format(item['detail_link']))
+                        continue
+                    if isinstance(outer['out_province'], list) and len(outer['out_province']) > 1:
+                        item['out_province'] = outer['out_province'][1]
+                    else:
+                        item['out_province'] = self.handle_out_province(
+                            node.xpath(outer['out_province']).extract_first())
+                    item_contains.append(item)
+        except Exception as e:
+            print(response.text)
+            with open(self.log_file, 'wa') as fp:
+                fp.write(str(e))
+            exit(0)
         yield {'item_contains': item_contains}
 
         yield self.turn_page(response)
