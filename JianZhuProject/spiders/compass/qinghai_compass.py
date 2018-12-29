@@ -9,18 +9,19 @@ from JianZhuProject.spiders.compass.base_compass import BaseCompass
 
 
 class QingHaiCompass(BaseCompass):
-    name = 'qinghai_compass'
-    allow_domain = ['jzsc.qhcin.gov.cn']
+    # name = 'qinghai_compass'
+    name = 'xinjiang_compass'
+    allow_domain = ['jzsc.qhcin.gov.cn', 'jsy.xjjs.gov.cn']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,}
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     cnt = 1
     start_urls = [
-        # ('http://jzsc.qhcin.gov.cn/dataservice/query/comp/list', sit_list[1]),
-        ('http://jsy.xjjs.gov.cn/dataservice/query/comp/list', sit_list[1])
+        # ('http://jzsc.qhcin.gov.cn/dataservice/query/comp/list', sit_list[1]),  # 青海
+        ('http://jsy.xjjs.gov.cn/dataservice/query/comp/list', sit_list[1])  # 新疆
     ]
     # redis_tools = RedisTools()
-
+    log_file = '../logs/{}_log.log'.format(name)
     extract_dict = {
         'outer': {
             'nodes': '//div[@class="mtop"]//tbody//tr[@onclick]',
@@ -70,7 +71,7 @@ class QingHaiCompass(BaseCompass):
             good_link = clink
         else:
             pp = re.compile(r"href='(.*)'")
-            good_link = 'http://jzsc.qhcin.gov.cn' + re.search(pp, clink).group(1)
+            good_link = 'http://jsy.xjjs.gov.cn' + re.search(pp, clink).group(1)
         return good_link
 
     def get_form_data(self, resp):
@@ -84,7 +85,10 @@ class QingHaiCompass(BaseCompass):
         return formdata
 
     def handle_out_province(self, s):
-        return s.split('-')[0]
+        if s:
+            return s.split('-')[0]
+        else:
+            return 'None'
 
     def get_domain_info(self, link):
         # 根据link的开头特点需要进行重写
