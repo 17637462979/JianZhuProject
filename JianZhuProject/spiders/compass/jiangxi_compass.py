@@ -12,6 +12,8 @@ import re
 
 class JiangXiCompass(BaseCompass):
     name = 'jiangxi_compass'
+    log_file = '../logs/{}_log.log'.format(name)
+
     start_urls = [
         # ('http://jzsc.qhcin.gov.cn/dataservice/query/comp/list', sit_list[1]),
         ("http://59.52.254.106:8093/qualificationCertificateListForPublic", sit_list[0], 'inner1'),
@@ -22,7 +24,7 @@ class JiangXiCompass(BaseCompass):
     ]
     allow_domain = ['59.52.254.106:8093', '59.52.254.78', '59.52.254.108:8093', '59.52.254.106:8893']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,}
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     cnt = 1
     # redis_tools = RedisTools()
@@ -73,14 +75,19 @@ class JiangXiCompass(BaseCompass):
         sit, mark = meta['sit'], meta['mark']
         ext_dict = self.extract_dict[mark]
         nodes = response.xpath(ext_dict['nodes'])
-        for node in nodes:
-            item = NameItem()
-            item['compass_name'] = self.handle_cname(node.xpath(ext_dict['cname']).extract_first(), 'inner')
-            item['detail_link'] = self.handle_cdetail_link(node.xpath(ext_dict['detail_link']).extract_first(),
-                                                           'inner', url)
-            item['out_province'] = ext_dict['out_province'][1] if isinstance(ext_dict['out_province'], list) else 'None'
-            item_contains.append(item)
+        try:
+            for node in nodes:
+                item = NameItem()
+                item['compass_name'] = self.handle_cname(node.xpath(ext_dict['cname']).extract_first(), 'inner')
+                item['detail_link'] = self.handle_cdetail_link(node.xpath(ext_dict['detail_link']).extract_first(),
+                                                               'inner', url)
 
+                item['out_province'] = ext_dict['out_province'][1] if isinstance(ext_dict['out_province'],
+                                                                                 list) else 'None'
+                item_contains.append(item)
+        except Exception as e:
+            with open(self.log_file, 'wa') as fp:
+                fp.write(str(e) + meta['cur_page_num'])
         yield {'item_contains': item_contains}
 
         yield self.turn_page(response)
@@ -90,14 +97,18 @@ class JiangXiCompass(BaseCompass):
         meta = resp.meta
         headers = self.get_headers(link, flag='2')
         cur_page_num = resp.meta['cur_page_num']
-        print('当前页:', cur_page_num)
+        print(u'当前页:', cur_page_num)
+        next_page_flag = resp.xpath(u'//a[contains(text(), "下页")]').extract()
+        if not next_page_flag:
+            print(u'不能在翻页了')
+            return
         meta['cur_page_num'] = str(int(cur_page_num) + 1)
         if 'qualificationCertificateListForPublic' in resp.url:  # get
             url = link.split('?')[0] + '?pageIndex={}'.format(cur_page_num)
             return scrapy.Request(url, headers=headers, callback=self.parse_list, meta=meta)
         else:
             formdata = self.get_form_data(resp, flag='2')
-            return scrapy.FormRequest(link, formdata=formdata, headers=headers, callback=self.parse_list)
+            return scrapy.FormRequest(link, formdata=formdata, headers=headers, callback=self.parse_list, meta=meta)
 
     def get_headers(self, url, flag='1'):
         headers = {
@@ -131,7 +142,7 @@ class JiangXiCompass(BaseCompass):
 
     def get_form_data(self, resp, flag):
         meta = resp.meta
-        sit, mark = meta['sit'], meta['mark']
+        sit, mark, cur_page_num = meta['sit'], meta['mark'], meta['cur_page_num']
         if 'webSite' in resp.url:
             formdata = {
                 "__EVENTTARGET": "_ctl0:ContentPlaceHolder1:Pager1:lb_Next",
@@ -152,12 +163,9 @@ class JiangXiCompass(BaseCompass):
             pass
         else:
             formdata = {
-                'pageIndex': 2,
+                'pageIndex': cur_page_num,
             }
-        formdata = {
-
-        }
-        return ''
+        return formdata
 
     def handle_out_province(self, s):
         return s.split('-')[0]
