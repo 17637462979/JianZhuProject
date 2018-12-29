@@ -9,7 +9,7 @@ class FuJianCompass(BaseCompass):
     name = 'fujian_compass'
     allow_domain = ['www.fjjs.gov.cn:97']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,},
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, },
         # 'ALL_FINGER_CONTAINS': 'finger_contains_new1_tmp'
     }
     start_urls = [
@@ -28,7 +28,7 @@ class FuJianCompass(BaseCompass):
         '__VIEWSTATEGENERATOR': '//input[@id="__VIEWSTATEGENERATOR"]/@value',
         '__EVENTVALIDATION': '//input[@id="__EVENTVALIDATION"]/@value',
 
-        'hidid': './/iuput[contains(@id, "CompanyList_hddID")]/@value',  # 隐藏的序号，fordata
+        'hidid': '//iuput[contains(@id, "CompanyList_hddID")]/@value',  # 隐藏的序号，fordata
         'next_page_btn': u'//a[@title="下一页" and contains(@id, "nextpagebtn")]/@id'
     }
 
@@ -40,12 +40,12 @@ class FuJianCompass(BaseCompass):
         print('next_page_btn...', next_page_btn)
         sit = response.meta['sit']
         if not next_page_btn:
-            print('不能翻页了')
+            print(u'不能翻页了')
         else:
             formdata = self.get_form_data(response)
-            print('打印formdata：\n', formdata)
+            # print(u'打印formdata：\n', formdata)
             headers = self.get_header(response.url, flag='2')  # 表示不是第一次发的请求
-            print('打印headers：\n', headers)
+            print(u'打印headers：\n', headers)
             return scrapy.FormRequest(response.url, callback=self.parse_list, headers=headers, formdata=formdata,
                                       meta={'sit': sit, 'pre_page_num': str(int(cur_page_num) + 1)})
 
@@ -53,22 +53,28 @@ class FuJianCompass(BaseCompass):
         __VIEWSTATE = rep.xpath(self.extract_dict['__VIEWSTATE']).extract_first()
         __VIEWSTATEGENERATOR = rep.xpath(self.extract_dict['__VIEWSTATEGENERATOR']).extract_first()
         __EVENTVALIDATION = rep.xpath(self.extract_dict['__EVENTVALIDATION']).extract_first()
-        cur_page_num = rep.meta.get('pre_page_num', '1')
+        cur_page_num = rep.meta.get('pre_page_num', '0')
         form_data = {
-            '__EVENTTARGET': ' ctl00$ContentPlaceHolder$pGrid$nextpagebtn',
+            '__EVENTTARGET': 'ctl00$ContentPlaceHolder$pGrid$nextpagebtn',
             '__EVENTARGUMENT': '',
             '__LASTFOCUS': '',
             '__VIEWSTATE': __VIEWSTATE,
             '__VIEWSTATEGENERATOR': __VIEWSTATEGENERATOR,
             '__EVENTVALIDATION': __EVENTVALIDATION,
             'ctl00$ContentPlaceHolder$txtCompanyName': '',
-            'ctl00$ContentPlaceHolder$pGrid$dplist': cur_page_num,
+            'ctl00$ContentPlaceHolder$pGrid$dplist': str(int(cur_page_num) + 1),
         }
         hid_id_list = rep.xpath(self.extract_dict['hidid']).extract()
+        print('hid_id_list:', rep.text)
         kstr = "ctl00$ContentPlaceHolder$gridViewCompanyList$ctl{}$hddID"
-        for i, hid in enumerate(hid_id_list):
-            k = kstr.format('0' + str(i))
-            form_data[k] = hid
+        hidk_list = rep.xpath('//input[@type="hidden" and contains(@name, "hddID")]/@name').extract()
+        hidv_list = rep.xpath('//input[@type="hidden" and contains(@name, "hddID")]/@value').extract()
+        for k, v in zip(hidk_list, hidv_list):
+            form_data[k] = v
+        # for i, hid in enumerate(hid_id_list, start=2):
+        #     k = kstr.format('0' + str(i) if i<10 else i)
+        #     form_data[k] = hid
+        print(u'打印formdata:\n{}'.format(form_data))
         return form_data
 
     def handle_cdetail_link(self, clink, flag='inner', url=''):
