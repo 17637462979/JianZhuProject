@@ -8,29 +8,35 @@ from scrapy import cmdline
 from JianZhuProject.auxiliary.redis_tools import RedisTools
 from JianZhuProject.items import NameItem
 from JianZhuProject.spiders.compass.base_compass import BaseCompass
+import re
 
 sit_list = ['省内', '省外']
 class LiaoLinCompass(BaseCompass):
     name = 'liaolin_compass'
     allow_domain = ['218.60.144.163']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,}
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     start_urls = [
         'http://218.60.144.163/LNJGPublisher/corpinfo/CorpInfo.aspx',
     ]
+    log_file = '../logs/{}_log.log'.format(name)
     redis_tools = RedisTools()
 
     inner_extract_dict = {
         'nodes': '//div[@id="div_Province"]//tr[@class="odd" or @class="even"]',
         'cname': './td[contains(@class, "company_name")]/@title',
         'detail_link': './td[contains(@class, "company_name")]/a[contains(@onclick, "OpenCorpDetail")]/@onclick',
-        'out_province': 'None'
+        'out_province': 'None',
+
+        '__VIEWSTATE': '//input[@id="__VIEWSTATE"]/@value',
+        '__EVENTVALIDATION': '//input[@id="__EVENTVALIDATION"]/@value',
     }
 
     outer_extract_dict = {
         'nodes': '//div[@id="div_outCast"]//tr[@class="odd" or @class="even"]',
         'detail_link': './td[last()]/a[contains(@onclick, "onshow")]/@onclick',
+        # onshow('30a48514-d54e-4a38-bafd-0d05296f1a01')
         'cname': './td[2]/text()',
         'out_province': './td[4]/text()'
     }
@@ -42,59 +48,59 @@ class LiaoLinCompass(BaseCompass):
             'Referer': 'http://cx.jljsw.gov.cn/corpinfo/CorpInfo.aspx',
             'Host': 'cx.jljsw.gov.cn',
         }
-        for link, sit in self.start_urls:
-            yield scrapy.Request(link, headers=headers, callback=self.parse_list)
+        for link in self.start_urls:
+            yield scrapy.Request(link, headers=headers, callback=self.parse_list, meta={'cur_page_num': 1})
 
     def parse_list(self, response):
         item_contains = []
 
         node1 = response.xpath(self.inner_extract_dict['nodes'])
         node2 = response.xpath(self.outer_extract_dict['nodes'])
-        for node in node1:
-            inner_item = NameItem()
-            inner_item['compass_name'] = self.handle_cname(node.xpath(self.inner_extract_dict['cname']).extract_first())
-            inner_item['detail_link'] = self.handle_cdetail_link(node.xpath(self.inner_extract_dict['detail_link']).extract_first())
-            inner_item['out_province'] = 'liaolin'
-            if not self.redis_tools.check_finger(inner_item['detail_link']):
-                item_contains.append(inner_item)
-            else:
-                print('{}已经爬取过'.format(inner_item['detail_link']))
+        try:
+            for node in node1:
+                inner_item = NameItem()
+                inner_item['compass_name'] = self.handle_cname(
+                    node.xpath(self.inner_extract_dict['cname']).extract_first())
+                inner_item['detail_link'] = self.handle_cdetail_link(
+                    node.xpath(self.inner_extract_dict['detail_link']).extract_first())
+                inner_item['out_province'] = 'liaolin'
+                if not self.redis_tools.check_finger(inner_item['detail_link']):
+                    item_contains.append(inner_item)
+                else:
+                    print('{}已经爬取过'.format(inner_item['detail_link']))
 
-        for node in node2:
-            outer_item = NameItem()
-            outer_item['compass_name'] = self.handle_cname(node.xpath(self.outer_extract_dict['cname']).extract_first())
-            outer_item['detail_link'] = self.handle_cdetail_link(
-                node.xpath(self.outer_extract_dict['detail_link']).extract_first())
-            outer_item['out_province'] = node.xpath(self.outer_extract_dict['out_province']).extract_first()
+            for node in node2:
+                outer_item = NameItem()
+                outer_item['compass_name'] = self.handle_cname(
+                    node.xpath(self.outer_extract_dict['cname']).extract_first())
+                outer_item['detail_link'] = self.handle_cdetail_link(
+                    node.xpath(self.outer_extract_dict['detail_link']).extract_first())
+                outer_item['out_province'] = self.handle_out_province(
+                    node.xpath(self.outer_extract_dict['out_province']).extract_first())
 
-            if not self.redis_tools.check_finger(outer_item['detail_link']):
-                item_contains.append(outer_item)
-            else:
-                print('{}已经爬取过'.format(outer_item['detail_link']))
-
+                if not self.redis_tools.check_finger(outer_item['detail_link']):
+                    item_contains.append(outer_item)
+                else:
+                    print(u'{}已经爬取过'.format(outer_item['detail_link']))
+        except Exception as e:
+            with open(self.log_file, 'wa') as fp:
+                fp.write(str(e))
         yield {'item_contains': item_contains}
 
         # 翻页
-        total_page = int(json_data['nPageCount'])
-        cur_page = int(json_data['nPageIndex'])
+        meta = response.meta
+        cur_page_num = meta['cur_page_num']
+        next_page_flag = response.xpath('//a[@id="Linkbutton3" and contains(@class, "aspNetDisabled")]').extract()
+        if next_page_flag:
+            print(u'不能继续翻页了，当前最大页码:')
+            return
+        print(u'翻页....')
+        next_page = int(cur_page_num) + 1
+        meta['cur_page_num'] = str(next_page)
+        headers = self.get_header(response.url, flag='2')
+        formdata = self.get_form_data(response)
+        yield scrapy.FormRequest(response.url, formdata=formdata, callback=self.parse_list, meta=meta, headers=headers)
 
-        if int(total_page) > int(cur_page):
-            print('翻页....')
-            next_page = cur_page + 1
-            mpara = 'SnCorpData' if sit == sit_list[0] else 'SwCorpData'
-            next_link = 'http://cx.jljsw.gov.cn/handle/NewHandler.ashx?method={}&nPageIndex={}&nPageSize=20'.format(mpara, next_page)
-            response.meta['cur_page'] = next_page
-            yield scrapy.Request(next_link, callback=self.parse_list, meta=response.meta)
-        else:
-            print('不能继续翻页了,当前页码:', cur_page)
-
-    def handle_cname(self, cname):
-        """
-        处理公司名称
-        :param cname: 字符串公司名
-        :return: 干净的名字
-        """
-        return cname
 
     def handle_cdetail_link(self, clink):
         """
@@ -102,29 +108,36 @@ class LiaoLinCompass(BaseCompass):
         :param clink: 字符串链接, 最原始
         :return: 直接能够使用的链接,（无论是post还是get）
         """
-        if clink.startswith('http'):
-            good_link = clink
+
+        if 'OpenCorpDetail' in clink:
+            pp = re.compile(ur"OpenCorpDetail\('(.*?)','(.*?)','(.*)'\)")
+            [rowGuid, CorpCode, CorpName] = re.search(pp, clink).groups()
+            good_link = 'http://218.60.144.163/LNJGPublisher/corpinfo/CorpDetailInfo.aspx?rowGuid={}&CorpCode={}&CorpName={}&VType=1'.format(
+                rowGuid, CorpCode, CorpName)
         else:
-            domain_str = 'http://cx.jljsw.gov.cn'  # 待重写，domain_str可变, 结尾一定没有/
-            if clink.startswith('..'):
-                good_link = clink.replace('..', domain_str, 1)
-            elif clink.startswith('.'):
-                good_link = clink.replace('.', domain_str, 1)
-            elif clink.startswith('/'):
-                good_link = domain_str + clink
-            else:
-                print('请重写该方法')
-                good_link = ''
+            pp = re.compile(ur"onshow\('(.*?)'")
+            fid = re.search(pp, clink).group(1)
+            good_link = 'http://218.60.144.163/LNJGPublisher/corpinfo/outCaseCorpDetailInfo.aspx?Fid=' + fid
         return good_link
 
+    def get_form_data(self, resp):
+        formdata = {
+            '__VIEWSTATE': resp.xpath(self.inner_extract_dict['__VIEWSTATE']).extract_first(),
+            '__EVENTVALIDATION': resp.xpath(self.inner_extract_dict['__EVENTVALIDATION']).extract_first(),
+            'hidd_type': '1',
+            'txtCorpName': '',
+            'ddlZzlx': '',
+            'txtFOrgCode': '',
+            'txtCertNum': '',
+            'newpage': resp.meta['cur_page_num'],
+            'newpage1': '',
+            '__EVENTTARGET': 'Linkbutton3',
+            '__EVENTARGUMENT': '',
+        }
+        return formdata
 
-    def handles_province(self, cprovice):
-        """
-        处理省份信息
-        :param cprovice:
-        :return: 只有省信息
-        """
-        pass
+    def handle_out_province(self, s):
+        return s.strip('\r\n\t ')
 
 if __name__ == '__main__':
-    cmdline.execute('scrapy crawl jilin_compass'.split())
+    LiaoLinCompass().run()
