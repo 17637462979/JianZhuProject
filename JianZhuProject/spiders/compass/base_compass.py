@@ -120,8 +120,15 @@ class BaseCompass(scrapy.Spider):
     def get_domain_info(self, link):
         # 根据link的开头特点需要进行重写
         # <scheme>://<netloc>/<path>;<params>?<query>#<fragment>
-        import urlparse
-        res = urlparse.urlparse(link)
+        # !/usr/bin/python
+        import platform
+        v = platform.python_version()
+        if v.startswith('2'):
+            import urlparse
+            res = urlparse.urlparse(link)
+        else:
+            from urllib import parse
+            res = parse.urlparse(link)
         return res.scheme + '://' + res.netloc
         # return 'jzjg.gzjs.gov.cn:8088'
 
