@@ -21,14 +21,6 @@ class GuangDongPart02Compass(BaseCompass):
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
     start_urls = [
-        # ("http://219.129.189.10:8080/yjcxk/web-nav/enterprises?pageNumber=1", sit_list[0]),
-        # ("http://219.129.189.10:8080/yjcxk/web-nav/enterprises?pageNumber=0", sit_list[1]),
-        # ("http://219.129.189.10:8080/yjcxk/web-nav/persons?pageNumber=1&pageSize=17550", sit_list[0])
-        # ('http://www.jyjzcx.com/web/companylist.action?pageNum=1&pageSize=15', sit_list[0])
-        # ('http://www.zsjs.gov.cn/web/enterprise/findEnterprises?page=1&start=45', sit_list[0]),
-        # ('https://gcjs.sg.gov.cn/website/buildproject/buildProjectSjAction!proMainList.action?pager.offset=20',
-        #  sit_list[0]),
-        # ('http://mmzjcx.maoming.gov.cn/PublicPage/CorpMoreList.aspx?clearPaging=true&strNav=4', sit_list[0]),
         ('http://zjj.jiangmen.gov.cn/public/licensing/index_1.html', sit_list[0]),
     ]
 
