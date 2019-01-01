@@ -12,8 +12,7 @@ from JianZhuProject.spiders.compass.base_compass import BaseCompass
 
 class GuangDongPart02Compass(BaseCompass):
     name = 'guangdong02_compass'
-    allow_domain = ['219.129.189.10:8080', 'www.jyjzcx.com', 'www.zsjs.gov.cn',
-                    'mmzjcx.maoming.gov.cn', '218.14.207.72:8082',
+    allow_domain = ['www.stjs.org.cn',
                     'zjj.jiangmen.gov.cn']
     custom_settings = {
         # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
@@ -21,19 +20,17 @@ class GuangDongPart02Compass(BaseCompass):
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
     start_urls = [
-        ('http://zjj.jiangmen.gov.cn/public/licensing/index_1.html', sit_list[0]),
+        # ('http://zjj.jiangmen.gov.cn/public/licensing/index_1.html', sit_list[0]),
+        ('http://www.stjs.org.cn/xxgk/xxgk_cxgs.aspx?page=3', sit_list[0])
     ]
 
     extract_dict = {
         'inner': {
-            'nodes': '//table[@class="administrative"]//tr[position()>1]',
+            'nodes': '//div[@class="a_table"]//table//tr[position()>1]',
             'cname': './td/a/text()',
-            'detail_link': './td/a/@href',  # 'http://zjj.jiangmen.gov.cn/public/licensing' + link
-            'next_page': '//a[contains(text(), "下一页")]/@href'  #
+            'detail_link': './td/a/@href',  # 'http://www.stjs.org.cn/xxgk/' + link
+            'next_page': '//a[contains(text(), "Next") and not(@disabled)]/@href'  # xxgk_cxgs.aspx?page=4
         },
-        # '__VIEWSTATE': '//input[@id="__VIEWSTATE"]/@value',
-        # '__EVENTVALIDATION': '//input[@id="__EVENTVALIDATION"]/@value',
-        # '__VIEWSTATEENCRYPTED': '//input[@id="__VIEWSTATEENCRYPTED"]/@value',
     }
 
     redis_tools = RedisTools()
@@ -52,7 +49,7 @@ class GuangDongPart02Compass(BaseCompass):
             item = NameItem()
             item['compass_name'] = self.handle_cname(node.xpath(ext_rules['cname']).extract_first())
             item['detail_link'] = self.handle_cdetail_link(node.xpath(ext_rules['detail_link']).extract_first())
-            item['out_province'] = 'waisheng'
+            item['out_province'] = 'guangdong'
             if self.redis_tools.check_finger(item['detail_link']):
                 print(u'{}已经爬取过'.format(item['compass_name']))
                 continue
@@ -63,12 +60,12 @@ class GuangDongPart02Compass(BaseCompass):
     def turn_page(self, response):
         meta = response.meta
         next_page_link = response.xpath(self.extract_dict['inner']['next_page']).extract_first()
-        if int(meta['cur_page']) >= 40:
+        if next_page_link is None:
             print(u'不能在翻页了')
             return
         headers = self.get_header(response.url, flag='2')
         meta['cur_page'] = str(int(meta['cur_page']) + 1)
-        link = 'http://zjj.jiangmen.gov.cn/public/licensing/index_{}.html'.format(meta['cur_page'])
+        link = 'http://www.stjs.org.cn/xxgk/{}'.format(next_page_link)
         return scrapy.Request(link, callback=self.parse_list, headers=headers, meta=meta)
 
     def handle_cname(self, cname, flag='inner'):
@@ -81,6 +78,8 @@ class GuangDongPart02Compass(BaseCompass):
             return 'http://218.14.207.72:8082/PublicPage/' + re.search(pp, link).group(1)
         if link.startswith('.'):
             return link.replace('.', 'http://zjj.jiangmen.gov.cn/public/licensing')
+        else:
+            return 'http://www.stjs.org.cn/xxgk/' + link
 
     def get_form_data(self, resp):
         meta = resp.meta
