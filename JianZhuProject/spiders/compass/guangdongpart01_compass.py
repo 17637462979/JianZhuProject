@@ -12,7 +12,7 @@ from JianZhuProject.spiders.compass.base_compass import BaseCompass
 
 class GuangDongPart01Compass(BaseCompass):
     name = 'guangdong01_compass'
-    allow_domain = ['219.129.189.10:8080']
+    allow_domain = ['219.129.189.10:8080', 'www.jyjzcx.com']
     custom_settings = {
         # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
