@@ -13,7 +13,7 @@ class ChongQingCompass(BaseCompass):
     name = 'chongqing_compass'
     allow_domain = ['jzzb.cqjsxx.com']
     custom_settings = {
-        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300}
     }
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
