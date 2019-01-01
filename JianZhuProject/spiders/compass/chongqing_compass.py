@@ -13,23 +13,23 @@ class ChongQingCompass(BaseCompass):
     name = 'chongqing_compass'
     allow_domain = ['jzzb.cqjsxx.com']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,}
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
     start_urls = [
         ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/YhzSgqy/YhzSgqy_List.aspx', sit_list[0], 'rule1'),
-        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Sgqy/Sgqy_List.aspx', sit_list[0], 'rule1'),
-        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zljcjg/Zljcjg_List.aspx', sit_list[0], 'rule1'),
-        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zjzxjg/Zjzxjg_List.aspx', sit_list[0], 'rule1'),
-        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Hntqy/Hntqy_List.aspx', sit_list[0], 'rule1'),
-        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Ryxxbs/Rybabs_List.aspx', sit_list[1], 'rule1'),
-        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zbdljg/Zbdljg_List.aspx', sit_list[1], 'rule1'),
-        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zjzxjg/Wd_Zjzxjg_List.aspx', sit_list[1], 'rule1'),
-        #
-        # # == == == == == == == == == rule2
-        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Jlqy/Jlqy_List.aspx', sit_list[0], 'rule2'),
-        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Jlqy/WdJlqy_List.aspx', sit_list[1], 'rule2'),
+        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Sgqy/Sgqy_List.aspx', sit_list[0], 'rule1'),
+        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zljcjg/Zljcjg_List.aspx', sit_list[0], 'rule1'),
+        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zjzxjg/Zjzxjg_List.aspx', sit_list[0], 'rule1'),
+        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Hntqy/Hntqy_List.aspx', sit_list[0], 'rule1'),
+        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Ryxxbs/Rybabs_List.aspx', sit_list[1], 'rule1'),
+        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zbdljg/Zbdljg_List.aspx', sit_list[1], 'rule1'),
+        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zjzxjg/Wd_Zjzxjg_List.aspx', sit_list[1], 'rule1'),
+
+        # == == == == == == == == == rule2
+        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Jlqy/Jlqy_List.aspx', sit_list[0], 'rule2'),
+        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Jlqy/WdJlqy_List.aspx', sit_list[1], 'rule2'),
     ]
 
     redis_tools = RedisTools()
@@ -50,7 +50,7 @@ class ChongQingCompass(BaseCompass):
         'total_page': '//span[@id="TurnPage1_pagecount" or @id="Pager1_Pages"]//text()',
         '__VIEWSTATE': '//input[@name="__VIEWSTATE"]/@value',
         '__VIEWSTATEGENERATOR': '//input[@name="__VIEWSTATEGENERATOR"]/@value',
-        # '__EVENTTARGET': '//input[@name="__EVENTTARGET"]/@value',
+        '__EVENTTARGET': '//input[@name="__EVENTTARGET"]/@value',
 
     }
 
@@ -79,10 +79,12 @@ class ChongQingCompass(BaseCompass):
 
     def turn_page(self, response):
         meta = response.meta
-        total_page = meta.get('total_page', response.xpath(self.extract_dict['total_page']).extract_first())
+        if 'total_page' not in meta:
+            meta['total_page'] = meta.get('total_page', response.xpath(self.extract_dict['total_page']).extract_first())
+
         cur_page_num = meta['cur_page_num']
-        print('当前页:{}, 总页码:{}'.format(cur_page_num, total_page))
-        if int(cur_page_num) >= int(total_page):
+        print('当前页:{}, 总页码:{}'.format(cur_page_num, meta['total_page']))
+        if int(cur_page_num) >= int(meta['total_page']):
             print('不能翻页了，当前最大页码:{}'.format(cur_page_num))
             return
         headers = self.get_header(response.url, flag='2')
@@ -95,9 +97,9 @@ class ChongQingCompass(BaseCompass):
             'TurnPage1:PageNum': '',
             'FName': '',
             '__EVENTARGUMENT': '',
-            '__EVENTTARGET': 'TurnPage1:LB_Last',
-            '__VIEWSTATE': response.xpath(self.extract_dict['__VIEWSTATE']).extract_first(),
-            '__VIEWSTATEGENERATOR': response.xpath(self.extract_dict['__VIEWSTATEGENERATOR']).extract_first(),
+            '__EVENTTARGET': 'TurnPage1:LB_Next',
+            '__VIEWSTATE': ''.join(response.xpath(self.extract_dict['__VIEWSTATE']).extract()),
+            '__VIEWSTATEGENERATOR': ''.join(response.xpath(self.extract_dict['__VIEWSTATEGENERATOR']).extract()),
         }
         return form_data
 
@@ -110,14 +112,6 @@ class ChongQingCompass(BaseCompass):
         if flag not in (1, '1'):
             headers["Referer"], headers["Origin"] = url, self.get_domain_info(url)  # 二次进入才有
         return headers
-
-    def handle_cdetail_link(self, clink, flag='inner', url=''):
-        if clink.startswith('http'):
-            good_link = clink
-        else:
-            good_link = "" + clink
-        return good_link
-
 
 if __name__ == '__main__':
     ChongQingCompass().run()
