@@ -15,13 +15,13 @@ class GuangDongPart02Compass(BaseCompass):
     allow_domain = ['www.stjs.org.cn',
                     'zjj.jiangmen.gov.cn']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
     start_urls = [
         # ('http://zjj.jiangmen.gov.cn/public/licensing/index_1.html', sit_list[0]),
-        ('http://www.stjs.org.cn/xxgk/xxgk_cxgs.aspx?page=3', sit_list[0])
+        ('http://www.stjs.org.cn/xxgk/xxgk_cxgs.aspx?page=1', sit_list[0])
     ]
 
     extract_dict = {
