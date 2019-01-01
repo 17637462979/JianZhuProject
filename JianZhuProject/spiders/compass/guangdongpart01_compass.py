@@ -50,7 +50,7 @@ class GuangDongPart01Compass(BaseCompass):
             item['detail_link'] = node.xpath(ext_rules['detail_link']).extract_first()
             item['out_province'] = 'waisheng'
             if self.redis_tools.check_finger(item['detail_link']):
-                print(u'{}已经爬取郭'.format(item['compass_name']))
+                print(u'{}已经爬取过'.format(item['compass_name']))
                 continue
             item_contains.append(item)
         yield {'item_contains': item_contains}
