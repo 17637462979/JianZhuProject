@@ -4,6 +4,7 @@ import json
 import scrapy
 
 from JianZhuProject import sit_list
+from JianZhuProject.auxiliary.redis_tools import RedisTools
 from JianZhuProject.items import NameItem
 from JianZhuProject.spiders.compass.base_compass import BaseCompass
 
@@ -12,7 +13,7 @@ class ChongQingCompass(BaseCompass):
     name = 'chongqing_compass'
     allow_domain = ['www.hebjs.gov.cn']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,}
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
@@ -31,7 +32,7 @@ class ChongQingCompass(BaseCompass):
         ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Jlqy/WdJlqy_List.aspx', sit_list[1], 'rule2'),
     ]
 
-    # redis_tools = RedisTools()
+    redis_tools = RedisTools()
 
     extract_dict = {
         'rule1': {  # acsOutNetQueryPageList  qualificationCertificateListForPublic
@@ -72,6 +73,9 @@ class ChongQingCompass(BaseCompass):
             item['compass_name'] = self.handle_cname(node.xpath(ext_rule['cname']).extract_first())
             item['detail_link'] = 'None'
             item['out_province'] = out_province
+            if self.redis_tools.check_finger(item['compass_name']):
+                print(u'{}已经抓取过'.format(item['compass_name']))
+                continue
             item_contains.append(item)
         yield {'item_contains': item_contains}
         yield self.turn_page(response)
@@ -80,10 +84,10 @@ class ChongQingCompass(BaseCompass):
         meta = response.meta
         total_page = meta.get('total_page', response.xpath(self.extract_dict['total_page']).extract_first())
         cur_page_num = meta['cur_page_num']
-        print('当前页:{}, 总页码:{}'.format(cur_page_num, total_page))
         if int(cur_page_num) >= int(total_page):
             print('不能翻页了，当前最大页码:{}'.format(cur_page_num))
             return
+        print('当前页:{}, 总页码:{}'.format(cur_page_num, total_page))
         headers = self.get_header(response.url, flag='2')
         formdata = self.get_form_data(response)
         meta['cur_page_num'] = int(meta['cur_page_num']) + 1
