@@ -12,9 +12,9 @@ from JianZhuProject.spiders.compass.base_compass import BaseCompass
 
 class GuangDongPart01Compass(BaseCompass):
     name = 'guangdong01_compass'
-    allow_domain = ['219.129.189.10:8080', 'www.jyjzcx.com']
+    allow_domain = ['219.129.189.10:8080', 'www.jyjzcx.com', 'www.zsjs.gov.cn']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
@@ -22,7 +22,8 @@ class GuangDongPart01Compass(BaseCompass):
         # ("http://219.129.189.10:8080/yjcxk/web-nav/enterprises?pageNumber=1", sit_list[0]),
         # ("http://219.129.189.10:8080/yjcxk/web-nav/enterprises?pageNumber=0", sit_list[1]),
         # ("http://219.129.189.10:8080/yjcxk/web-nav/persons?pageNumber=1&pageSize=17550", sit_list[0])
-        ('http://www.jyjzcx.com/web/companylist.action?pageNum=1&pageSize=15', sit_list[0])
+        # ('http://www.jyjzcx.com/web/companylist.action?pageNum=1&pageSize=15', sit_list[0])
+        ('http://www.zsjs.gov.cn/web/enterprise/findEnterprises?page=1&start=45', sit_list[0])
 
     ]
     extract_dict = {
@@ -38,7 +39,7 @@ class GuangDongPart01Compass(BaseCompass):
 
     def start_requests(self):
         for link, sit in self.start_urls:
-            yield scrapy.Request(link, callback=self.parse_list1, meta={'cur_page': '1'})
+            yield scrapy.Request(link, callback=self.parse_list2, meta={'cur_page': '1'})
 
     def parse_list1(self, response):
         ext_rules = self.extract_dict['inner']
@@ -66,7 +67,32 @@ class GuangDongPart01Compass(BaseCompass):
         headers = self.get_header(response.url, flag='2')
         return scrapy.Request(link, callback=self.parse_list1, headers=headers, meta=meta)
 
+    def parse_list2(self, response):
+        json_data = json.loads(response.body_as_unicode())
 
+        item_contains = []
+        for row in json_data['rows']:
+            item = NameItem()
+            item['compass_name'] = row['cxaa05']
+            item['detail_link'] = row['link']
+            item['out_province'] = 'waisheng'
+            item_contains.append(item)
+        yield {'item_contains': item_contains}
+        meta = response.meta
+        total_page = (json_data['total'] + 14) / 15
+        cur_page = meta['cur_page']
+        if int(cur_page) >= int(total_page):
+            print(u'不能继续翻页了，当前最大页码为:', cur_page)
+            return
+        yield self.turn_page1(response)
+
+    def turn_page1(self, resp):
+        meta = resp.meta
+        meta['cur_page'], start_row = int(meta['cur_page']) + 1, int(meta['cur_page']) * 15
+        link = 'http://www.zsjs.gov.cn/web/enterprise/findEnterprises?page={}&start={}'.format(meta['cur_page'],
+                                                                                               start_row)
+        headers = self.get_header(resp.url, flag='2')
+        return scrapy.Request(link, callback=self.parse_list2, meta=meta, headers=headers)
 
 
         # def parse_list(self, response):
