@@ -11,9 +11,9 @@ from JianZhuProject.spiders.compass.base_compass import BaseCompass
 
 class ChongQingCompass(BaseCompass):
     name = 'chongqing_compass'
-    allow_domain = ['www.hebjs.gov.cn']
+    allow_domain = ['jzzb.cqjsxx.com']
     custom_settings = {
-        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300}
     }
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
@@ -50,7 +50,7 @@ class ChongQingCompass(BaseCompass):
         'total_page': '//span[@id="TurnPage1_pagecount" or @id="Pager1_Pages"]//text()',
         '__VIEWSTATE': '//input[@name="__VIEWSTATE"]/@value',
         '__VIEWSTATEGENERATOR': '//input[@name="__VIEWSTATEGENERATOR"]/@value',
-        # '__EVENTTARGET': '//input[@name="__EVENTTARGET"]/@value',
+        '__EVENTTARGET': '//input[@name="__EVENTTARGET"]/@value',
 
     }
 
@@ -82,12 +82,14 @@ class ChongQingCompass(BaseCompass):
 
     def turn_page(self, response):
         meta = response.meta
-        total_page = meta.get('total_page', response.xpath(self.extract_dict['total_page']).extract_first())
+        if 'total_page' not in meta:
+            meta['total_page'] = meta.get('total_page', response.xpath(self.extract_dict['total_page']).extract_first())
+
         cur_page_num = meta['cur_page_num']
-        if int(cur_page_num) >= int(total_page):
+        if int(cur_page_num) >= int(meta['total_page']):
             print('不能翻页了，当前最大页码:{}'.format(cur_page_num))
             return
-        print('当前页:{}, 总页码:{}'.format(cur_page_num, total_page))
+        print('当前页:{}, 总页码:{}'.format(cur_page_num, meta['total_page']))
         headers = self.get_header(response.url, flag='2')
         formdata = self.get_form_data(response)
         meta['cur_page_num'] = int(meta['cur_page_num']) + 1
@@ -98,9 +100,9 @@ class ChongQingCompass(BaseCompass):
             'TurnPage1:PageNum': '',
             'FName': '',
             '__EVENTARGUMENT': '',
-            '__EVENTTARGET': 'TurnPage1:LB_Last',
-            '__VIEWSTATE': response.xpath(self.extract_dict['__VIEWSTATE']).extract_first(),
-            '__VIEWSTATEGENERATOR': response.xpath(self.extract_dict['__VIEWSTATEGENERATOR']).extract_first(),
+            '__EVENTTARGET': 'TurnPage1:LB_Next',
+            '__VIEWSTATE': ''.join(response.xpath(self.extract_dict['__VIEWSTATE']).extract()),
+            '__VIEWSTATEGENERATOR': ''.join(response.xpath(self.extract_dict['__VIEWSTATEGENERATOR']).extract()),
         }
         return form_data
 
@@ -113,14 +115,6 @@ class ChongQingCompass(BaseCompass):
         if flag not in (1, '1'):
             headers["Referer"], headers["Origin"] = url, self.get_domain_info(url)  # 二次进入才有
         return headers
-
-    def handle_cdetail_link(self, clink, flag='inner', url=''):
-        if clink.startswith('http'):
-            good_link = clink
-        else:
-            good_link = "" + clink
-        return good_link
-
 
 if __name__ == '__main__':
     ChongQingCompass().run()
