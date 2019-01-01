@@ -63,7 +63,7 @@ class ChongQingCompass(BaseCompass):
 
         meta = response.meta
         rule, sit = meta['rule'], meta['sit']
-        out_province = 'chongqing' if sit_list[0] == sit else 'waidi'
+        out_province = 'chongqing' if sit_list[0] == sit else 'waisheng'
         ext_rule = self.extract_dict[rule]
         nodes = response.xpath(ext_rule['nodes'])
         item_contains = []
