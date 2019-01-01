@@ -36,7 +36,7 @@ class ChongQingCompass(BaseCompass):
     extract_dict = {
         'rule1': {  # acsOutNetQueryPageList  qualificationCertificateListForPublic
             'nodes': '//table[@id="DataGrid1" or @rules="all"]//tr[position()>1]',
-            'cname': './/a[contains(@href, "doPostBack") and not(contains(string(), "查看"))]//text()',
+            'cname': u'.//a[contains(@href, "doPostBack") and not(contains(string(), "查看"))]//text()',
             'detail_link': '',  # # 赋值空
             # 'out_province': ['chongqing', 'waidi'],
         },
