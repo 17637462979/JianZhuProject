@@ -4,13 +4,14 @@ import json
 import scrapy
 
 from JianZhuProject import sit_list
+from JianZhuProject.auxiliary.redis_tools import RedisTools
 from JianZhuProject.items import NameItem
 from JianZhuProject.spiders.compass.base_compass import BaseCompass
 
 
 class ChongQingCompass(BaseCompass):
     name = 'chongqing_compass'
-    allow_domain = ['www.hebjs.gov.cn']
+    allow_domain = ['jzzb.cqjsxx.com']
     custom_settings = {
         # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,}
     }
@@ -18,20 +19,20 @@ class ChongQingCompass(BaseCompass):
     cnt = 1
     start_urls = [
         ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/YhzSgqy/YhzSgqy_List.aspx', sit_list[0], 'rule1'),
-        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Sgqy/Sgqy_List.aspx', sit_list[0], 'rule1'),
-        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zljcjg/Zljcjg_List.aspx', sit_list[0], 'rule1'),
-        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zjzxjg/Zjzxjg_List.aspx', sit_list[0], 'rule1'),
-        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Hntqy/Hntqy_List.aspx', sit_list[0], 'rule1'),
-        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Ryxxbs/Rybabs_List.aspx', sit_list[1], 'rule1'),
-        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zbdljg/Zbdljg_List.aspx', sit_list[1], 'rule1'),
-        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zjzxjg/Wd_Zjzxjg_List.aspx', sit_list[1], 'rule1'),
-
-        # == == == == == == == == == rule2
-        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Jlqy/Jlqy_List.aspx', sit_list[0], 'rule2'),
-        ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Jlqy/WdJlqy_List.aspx', sit_list[1], 'rule2'),
+        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Sgqy/Sgqy_List.aspx', sit_list[0], 'rule1'),
+        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zljcjg/Zljcjg_List.aspx', sit_list[0], 'rule1'),
+        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zjzxjg/Zjzxjg_List.aspx', sit_list[0], 'rule1'),
+        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Hntqy/Hntqy_List.aspx', sit_list[0], 'rule1'),
+        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Ryxxbs/Rybabs_List.aspx', sit_list[1], 'rule1'),
+        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zbdljg/Zbdljg_List.aspx', sit_list[1], 'rule1'),
+        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Zjzxjg/Wd_Zjzxjg_List.aspx', sit_list[1], 'rule1'),
+        #
+        # # == == == == == == == == == rule2
+        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Jlqy/Jlqy_List.aspx', sit_list[0], 'rule2'),
+        # ('http://jzzb.cqjsxx.com/CQCollect/Qy_Query/Jlqy/WdJlqy_List.aspx', sit_list[1], 'rule2'),
     ]
 
-    # redis_tools = RedisTools()
+    redis_tools = RedisTools()
 
     extract_dict = {
         'rule1': {  # acsOutNetQueryPageList  qualificationCertificateListForPublic
