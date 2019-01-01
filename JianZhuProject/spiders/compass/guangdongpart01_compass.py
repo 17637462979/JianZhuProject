@@ -12,9 +12,9 @@ from JianZhuProject.spiders.compass.base_compass import BaseCompass
 
 class GuangDongPart01Compass(BaseCompass):
     name = 'guangdong01_compass'
-    allow_domain = ['219.129.189.10:8080', 'www.jyjzcx.com', 'www.zsjs.gov.cn']
+    allow_domain = ['219.129.189.10:8080', 'www.jyjzcx.com', 'www.zsjs.gov.cn', 'mmzjcx.maoming.gov.cn']
     custom_settings = {
-        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
+        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
@@ -24,23 +24,31 @@ class GuangDongPart01Compass(BaseCompass):
         # ("http://219.129.189.10:8080/yjcxk/web-nav/persons?pageNumber=1&pageSize=17550", sit_list[0])
         # ('http://www.jyjzcx.com/web/companylist.action?pageNum=1&pageSize=15', sit_list[0])
         # ('http://www.zsjs.gov.cn/web/enterprise/findEnterprises?page=1&start=45', sit_list[0]),
-        ('https://gcjs.sg.gov.cn/website/buildproject/buildProjectSjAction!proMainList.action?pager.offset=20',
-         sit_list[0]),
+        # ('https://gcjs.sg.gov.cn/website/buildproject/buildProjectSjAction!proMainList.action?pager.offset=20',
+        #  sit_list[0]),
+        ('http://mmzjcx.maoming.gov.cn/PublicPage/CorpMoreList.aspx?clearPaging=true&strNav=4', sit_list[0])
     ]
+    ctypes = [3, 2, 1, 4, 6, 5, 7, 8, 9, 10, 11, 12, 'A', 'B', 'C', 'D']
+
     extract_dict = {
         'inner': {
-            'nodes': '//table[@class="list_div"]//tr',
+            'nodes': '//table[contains(@id, "GridView1")]//tr[position()>1]',
             'cname': './td/a/text()',
-            'detail_link': './td/a/@href',  # https://gcjs.sg.gov.cn     #'http://www.jyjzcx.com' + xxx,
-            'next_page_url': '//a[@class="laypage_next"]/@data-page'  #
-        }
+            'detail_link': './td/a/@onclick',  #
+            'next_page': '//input[contains(@id, "btnNext") and @disabled]'  #
+        },
+        '__VIEWSTATE': '//input[@id="__VIEWSTATE"]/@value',
+        '__EVENTVALIDATION': '//input[@id="__EVENTVALIDATION"]/@value',
+        '__VIEWSTATEENCRYPTED': '//input[@id="__VIEWSTATEENCRYPTED"]/@value',
     }
 
     redis_tools = RedisTools()
 
     def start_requests(self):
-        for link, sit in self.start_urls:
-            yield scrapy.Request(link, callback=self.parse_list1, meta={'cur_page': '1'})
+        link = self.start_urls[0][0]
+        for ctype in self.ctypes[:1]:
+            yield scrapy.Request(link, callback=self.parse_list1, meta={'cur_page': '1', 'ctype': ctype},
+                                 dont_filter=True)
 
     def parse_list1(self, response):
         ext_rules = self.extract_dict['inner']
@@ -60,13 +68,13 @@ class GuangDongPart01Compass(BaseCompass):
 
     def turn_page(self, response):
         meta = response.meta
-        if int(meta['cur_page']) >= 4:
+        if response.xpath(self.extract_dict['inner']['next_page']).extract_first():
             print(u'不能在翻页了')
             return
-        meta['cur_page'] = str(int(meta['cur_page']) + 1)
-        # link = 'http://www.jyjzcx.com/web/companylist.action?pageNum={}&pageSize=15'.format(meta['cur_page'])
         headers = self.get_header(response.url, flag='2')
         form_data = self.get_form_data(response)
+        meta['cur_page'] = str(int(meta['cur_page']) + 1)
+        print(u'下一页:', meta['cur_page'])
         return scrapy.FormRequest(response.url, formdata=form_data, callback=self.parse_list1, headers=headers,
                                   meta=meta)
 
@@ -132,31 +140,31 @@ class GuangDongPart01Compass(BaseCompass):
         #     #     return
 
     def handle_cname(self, cname):
-        return cname.replace('企业基本信息', '')
+        return cname.replace('企业基本信息', '').strip('\n\t\r ')
 
     def handle_cdetail_link(self, link):
-
-        return 'https://gcjs.sg.gov.cn' + link
+        if 'javascript:window' in link:
+            import re
+            pp = re.compile(r"\('(.*?)'\)")
+            return 'http://mmzjcx.maoming.gov.cn/PublicPage/' + re.search(pp, link).group(1)
 
     def get_form_data(self, resp):
         meta = resp.meta
         formdata = {
-            'tId': '',
-            'tpId': '3',
-            'areaCode': '440200',
-            'gkmlbh2': '',
-            'gkywbt': '',
-            'startTime': '',
-            'endTime': '',
-            'pagesize': '20',
-            'pageNumber': str(meta['cur_page']),
-            'SYSTEM_YANGANG_IS_RESET_SEARCH': 'false',
-            'currentpage': str(meta['cur_page']),
+            'ctl00$cph_context$ScriptManager1': 'ctl00$cph_context$UpdatePanel1|ctl00$cph_context$GridViewPaging1$btnNext',
+            '__EVENTTARGET': '',
+            '__EVENTARGUMENT': '',
+            '__LASTFOCUS': '',
+            '__VIEWSTATE': resp.xpath(self.extract_dict['__VIEWSTATE']).extract_first(),
+            '__EVENTVALIDATION': resp.xpath(self.extract_dict['__EVENTVALIDATION']).extract_first(),
+            '__VIEWSTATEENCRYPTED': resp.xpath(self.extract_dict['__VIEWSTATEENCRYPTED']).extract_first(),
+            'ctl00$cph_context$ddlCorpType': str(meta['ctype']),
+            'ctl00$cph_context$ddlCorpSincerityGrade': '',
+            'ctl00$cph_context$txtCorpName': u'请输入相关的企业名称',
+            'ctl00$cph_context$GridViewPaging1$txtGridViewPagingForwardTo': str(meta['cur_page']),
+            'ctl00$cph_context$GridViewPaging1$btnNext.x': '12',
+            'ctl00$cph_context$GridViewPaging1$btnNext.y': '5',
         }
-        if 'buildProjectS' in resp.url:
-            formdata['gkmlbh'] = 'XYDW_QYZZ'
-        else:
-            formdata['gkmlbh'] = 'XYDW_QYJB'
 
         return formdata
 
