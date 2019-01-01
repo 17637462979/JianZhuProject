@@ -18,7 +18,10 @@ class CorpNamePipeline(object):
             detail_link = item['detail_link']
             out_province = item['out_province']   # 'None'为本省, 否则保存外省名
 
-            finger = item['detail_link']   # 公司名作为指纹
+            if item['detail_link'] is None or item['detail_link'].upper() in ('NONE', ''):
+                finger = compass_name
+            else:
+                finger = item['detail_link']  # 公司名作为指纹
             self.redis_tools.store_finger(ALL_FINGER_CONTAINS, finger)
             common_info = '##'.join([compass_name, detail_link, out_province])
             self.redis_tools.store_finger(spider_name, common_info)
