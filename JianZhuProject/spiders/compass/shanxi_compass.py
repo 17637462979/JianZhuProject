@@ -105,26 +105,21 @@ class ShanXiCompass(BaseCompass):
         link = resp.url
         meta = resp.meta
         headers = self.get_headers(link, flag='2')
-
-        if 'qualificationCertificateListForPublic' in resp.url:  # get
-            url = link.split('?')[0] + '?pageIndex={}'.format(cur_page_num)
-            return scrapy.Request(url, headers=headers, callback=self.parse_list, meta=meta)
+        if not resp.xpath(
+                u'//a[@id="Pager1_lb_Next"]/@href | //a[not(@id) and @onclick="pageNext()" and contains(text(), "下一页")]/@onclick | //a[contains(text(), "下一页")]').extract_first():
+            print(u'不能继续翻页了')
+            return
+        cur_page_num = resp.meta['cur_page_num']
+        print(u'当前页:{}'.format(cur_page_num))
+        meta['cur_page_num'] = str(int(cur_page_num) + 1)
+        if meta['mark'] != 'inner2':
+            form_data = self.get_form_data(resp, flag='2')
+            return scrapy.FormRequest(link, formdata=form_data, headers=headers, callback=self.parse_list,
+                                      meta=meta)
         else:
-            if not resp.xpath(
-                    u'//a[@id="Pager1_lb_Next"]/@href | //a[not(@id) and @onclick="pageNext()" and contains(text(), "下一页")]/@onclick | //a[contains(text(), "下一页")]').extract_first():
-                print(u'不能继续翻页了')
-                return
-            cur_page_num = resp.meta['cur_page_num']
-            print(u'当前页:{}'.format(cur_page_num))
-            meta['cur_page_num'] = str(int(cur_page_num) + 1)
-            if meta['mark'] != 'inner2':
-                form_data = self.get_form_data(resp, flag='2')
-                return scrapy.FormRequest(link, formdata=form_data, headers=headers, callback=self.parse_list,
-                                          meta=meta)
-            else:
-                link = 'http://124.115.170.171:7001/PDR/network/informationSearch/informationSearchzbList?pageNumber={}&libraryName=enterpriseLibrary'.format(
-                    meta['cur_page_num'])
-                return scrapy.FormRequest(link, headers=headers, callback=self.parse_list, meta=meta, dont_filter=True)
+            link = 'http://124.115.170.171:7001/PDR/network/informationSearch/informationSearchzbList?pageNumber={}&libraryName=enterpriseLibrary'.format(
+                meta['cur_page_num'])
+            return scrapy.FormRequest(link, headers=headers, callback=self.parse_list, meta=meta, dont_filter=True)
 
     def get_headers(self, url, flag='1'):
         headers = {
