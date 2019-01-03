@@ -14,7 +14,7 @@ class GuangDongPart01Compass(BaseCompass):
     name = 'guangdong01_compass'
     allow_domain = ['219.129.189.10:8080', 'www.jyjzcx.com', 'www.zsjs.gov.cn', 'mmzjcx.maoming.gov.cn']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     log_file = '../logs/{}_log.log'.format(name)
     cnt = 1
@@ -28,7 +28,8 @@ class GuangDongPart01Compass(BaseCompass):
         #  sit_list[0]),
         ('http://mmzjcx.maoming.gov.cn/PublicPage/CorpMoreList.aspx?clearPaging=true&strNav=4', sit_list[0])
     ]
-    ctypes = [3, 2, 1, 4, 6, 5, 7, 8, 9, 10, 11, 12, 'A', 'B', 'C', 'D']
+    ctypes = [3, 2, 1, 4, 6, 5, 7, 8, 9, 10, 11, 12]
+    tot = [2, 3, 2, 10, 3, 0, 2, 5, 1, 1, 5, 2]
 
     extract_dict = {
         'inner': {
@@ -68,7 +69,7 @@ class GuangDongPart01Compass(BaseCompass):
 
     def turn_page(self, response):
         meta = response.meta
-        if response.xpath(self.extract_dict['inner']['next_page']).extract_first():
+        if int(meta['cur_page']) >= int(meta['total_page']):
             print(u'不能在翻页了')
             return
         headers = self.get_header(response.url, flag='2')
