@@ -18,34 +18,35 @@ class ShanXiCompass(BaseCompass):
         ("http://js.shaanxi.gov.cn:9010/SxApp/share/WebSide/ZZCXList.aspx?fsid=175", sit_list[0], 'inner1'),  # 质量检测机构
         ("http://js.shaanxi.gov.cn:9010/SxApp/share/WebSide/ZZCXList.aspx?fcol=80001919&fsid=202", sit_list[0],
          'inner1'),
-
+        #
         (
-        'http://124.115.170.171:7001/PDR/network/informationSearch/informationSearchList?pageNumber=3&libraryName=enterpriseLibrary',
+        'http://124.115.170.171:7001/PDR/network/informationSearch/informationSearchList?pageNumber=1&libraryName=enterpriseLibrary',
         sit_list[0], 'inner2'),
         (
         'http://124.115.170.171:7001/PDR/network/informationSearch/informationSearchzbList?pageNumber=2&libraryName=enterpriseLibrary',
         sit_list[0], 'inner2'),
-
+        #
         ("http://js.shaanxi.gov.cn:9010/SxApp/share/WebSide/ZZCXSGList.aspx?fsid=180", sit_list[1], 'inner3'),
-        # 外省进陕施工企业
+        # # 外省进陕施工企业
         ("http://js.shaanxi.gov.cn:9010/SxApp/share/WebSide/ZZCXSGList.aspx?fsid=325", sit_list[1], 'inner3'),
-        # 外省进陕监理企业
+        # # 外省进陕监理企业
         ("http://js.shaanxi.gov.cn:9010/SxApp/share/WebSide/ZZCXSGList.aspx?fsid=320", sit_list[1], 'inner3'),
         # 外省入陕招标企业
     ]
-    allow_domain = ['59.52.254.106:8093', '59.52.254.78', '59.52.254.108:8093', '59.52.254.106:8893']
+    allow_domain = ['59.52.254.106:8093', '59.52.254.78', '59.52.254.108:8093', '59.52.254.106:8893',
+                    'js.shaanxi.gov.cn:9010']
     custom_settings = {
-        # 'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300,}
+        'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     cnt = 1
     # redis_tools = RedisTools()
 
     extract_dict = {
         'inner1': {
-            'nodes': '//table[@class="ch_dglit"]//tr[contains(@class,"ch_Grid")][position()>1]',
-            'cname': './/td[2]/text()',
+            'nodes': '//table[@class="ch_dglit" or @class="m_dg1"]//tr[contains(@class,"ch_Grid") or contains(@class, "m_dg1")][position()>1]//td[2]',
+            'cname': './text()',
             'detail_link': None,  # None
-            'out_province': ['None', 'shanxi'],
+            'out_province': ['None', 'shangxi'],
             '__VIEWSTATE': '//input[@id="__VIEWSTATE"]/@value',
             '__VIEWSTATEGENERATOR': '//input[@id="__VIEWSTATEGENERATOR"]/@value',
             '__EVENTVALIDATION': '//input[@id="__EVENTVALIDATION"]/@value',
@@ -54,13 +55,11 @@ class ShanXiCompass(BaseCompass):
             'nodes': '//table[contains(@id, "enterprise")]//tr[position()>1]',
             'cname': './td[2]/@title',
             'detail_link': './td[2]//a[@onclick]/@onclick',
-        # vie1('安徽兴邦建筑工程有限公司','ab3ef43f-07fc-4e23-bfbd-8f5c9daa39ae' ,'9134010067892467X8','')
-            #    (name, enid, org_code, type)
             'out_province': ['None', 'shanxi'],
         },
         'inner3': {
-            'nodes': '//table[@class="m_dg1" or @class="ch_dglit"]//tr',
-            'cname': './td[@class="t_c"][1]/text()',
+            'nodes': '//table[@class="m_dg1" or @class="ch_dglit"]//tr[contains(@class,"ch_Grid") or contains(@class, "m_dg1")][position()>1]/td[2]',
+            'cname': './text()',
             'detail_link': None,
             'out_province': ['None', 'waisheng'],
             '__VIEWSTATE': '//input[@id="__VIEWSTATE"]/@value',
@@ -82,6 +81,7 @@ class ShanXiCompass(BaseCompass):
         sit, mark = meta['sit'], meta['mark']
         ext_dict = self.extract_dict[mark]
         nodes = response.xpath(ext_dict['nodes'])
+        print('nodes:', len(nodes))
         for node in nodes:
             item = NameItem()
             item['compass_name'] = self.handle_cname(node.xpath(ext_dict['cname']).extract_first(), 'inner')
@@ -89,9 +89,13 @@ class ShanXiCompass(BaseCompass):
                 item['detail_link'] = self.handle_cdetail_link(node.xpath(ext_dict['detail_link']).extract_first(),
                                                                'inner', url)
             else:
-                item['detail_link'] = None
+                item['detail_link'] = 'None'
+
             item['out_province'] = ext_dict['out_province'][1] if isinstance(ext_dict['out_province'], list) else 'None'
-            item_contains.append(item)
+            if not self.redis_tools.check_finger(item['compass_name']):
+                item_contains.append(item)
+            else:
+                print(u'{}已经抓取过了'.format(item['compass_name']))
 
         yield {'item_contains': item_contains}
 
@@ -101,15 +105,26 @@ class ShanXiCompass(BaseCompass):
         link = resp.url
         meta = resp.meta
         headers = self.get_headers(link, flag='2')
-        cur_page_num = resp.meta['cur_page_num']
-        print('当前页:', cur_page_num)
-        meta['cur_page_num'] = str(int(cur_page_num) + 1)
+
         if 'qualificationCertificateListForPublic' in resp.url:  # get
             url = link.split('?')[0] + '?pageIndex={}'.format(cur_page_num)
             return scrapy.Request(url, headers=headers, callback=self.parse_list, meta=meta)
         else:
-            formdata = self.get_form_data(resp, flag='2')
-            return scrapy.FormRequest(link, formdata=formdata, headers=headers, callback=self.parse_list, meta=meta)
+            if not resp.xpath(
+                    u'//a[@id="Pager1_lb_Next"]/@href | //a[not(@id) and @onclick="pageNext()" and contains(text(), "下一页")]/@onclick | //a[contains(text(), "下一页")]').extract_first():
+                print(u'不能继续翻页了')
+                return
+            cur_page_num = resp.meta['cur_page_num']
+            print(u'当前页:{}'.format(cur_page_num))
+            meta['cur_page_num'] = str(int(cur_page_num) + 1)
+            if meta['mark'] != 'inner2':
+                form_data = self.get_form_data(resp, flag='2')
+                return scrapy.FormRequest(link, formdata=form_data, headers=headers, callback=self.parse_list,
+                                          meta=meta)
+            else:
+                link = 'http://124.115.170.171:7001/PDR/network/informationSearch/informationSearchzbList?pageNumber={}&libraryName=enterpriseLibrary'.format(
+                    meta['cur_page_num'])
+                return scrapy.FormRequest(link, headers=headers, callback=self.parse_list, meta=meta, dont_filter=True)
 
     def get_headers(self, url, flag='1'):
         headers = {
@@ -134,22 +149,27 @@ class ShanXiCompass(BaseCompass):
     def get_form_data(self, resp, flag):
         meta = resp.meta
         sit, mark = meta['sit'], meta['mark']
-        cur_page_num = resp.meta['cur_page_num']
         ext_dict = self.extract_dict[mark]
-        if mark == 'inner2':
-            formdata = {
-                'pageNum': cur_page_num,
-            }
-        else:
-            formdata = {
-                "__VIEWSTATE": resp.xpath(ext_dict['__VIEWSTATE']).extract_first(),
-                "__VIEWSTATEGENERATOR": resp.xpath(ext_dict['__VIEWSTATEGENERATOR']).extract_first(),
-                "__EVENTVALIDATION": resp.xpath(ext_dict['__EVENTVALIDATION']).extract_first(),
-            }
-            if mark == 'inner3':
-                formdata['__EVENTARGUMENT'] = cur_page_num
-                formdata['Pager1_input'] = str(int(cur_page_num) - 1)
-        print(formdata)
+
+        formdata = {
+            '__VIEWSTATE': resp.xpath(ext_dict['__VIEWSTATE']).extract_first(),
+            '__VIEWSTATEGENERATOR': resp.xpath(ext_dict['__VIEWSTATEGENERATOR']).extract_first(),
+            '__EVENTVALIDATION': resp.xpath(ext_dict['__EVENTVALIDATION']).extract_first(),
+            'txtFName': '',
+            'txtFCertiNo': '',
+        }
+        if mark == 'inner1':
+            formdata.update({
+                '__EVENTTARGET': 'Pager1$lb_Next',
+                '__EVENTARGUMENT': '',
+                '__LASTFOCUS': '',
+                'Pager1$NavPage': '',
+            })
+        if mark == 'inner3':
+            formdata.update({
+                '__EVENTTARGET': 'Pager1',
+                '__EVENTARGUMENT': resp.meta['cur_page_num'],
+            })
         return formdata
 
     def handle_out_province(self, s):
