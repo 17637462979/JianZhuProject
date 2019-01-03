@@ -1,5 +1,6 @@
 # coding=utf-8
 import json
+import random
 
 import scrapy
 import time
@@ -16,6 +17,7 @@ class SiChuanCompass(BaseCompass):
     name = 'sichuan_compass'
     allow_domain = ['xmgk.scjst.gov.cn']
     custom_settings = {
+        'DOWNLOAD_DELAY': 1,
         'ITEM_PIPELINES': {'JianZhuProject.CorpNamePipeline.CorpNamePipeline': 300, }
     }
     log_file = '../logs/{}_log.log'.format(name)
@@ -73,9 +75,10 @@ class SiChuanCompass(BaseCompass):
     def turn_page(self, response):
         meta = response.meta
         headers = self.get_header(response.url, flag='2')
+        if int(meta['cur_page']) % 10:
+            time.sleep(random.random() * 4)
         meta['cur_page'] = str(int(meta['cur_page']) + 1)
         formdata = self.get_form_data(response)
-        print(headers)
         return scrapy.FormRequest(response.url, formdata=formdata, callback=self.parse_list, headers=headers, meta=meta)
 
     def handle_cdetail_link(self, link, flag='inner', url=''):
